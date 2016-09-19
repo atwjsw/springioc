@@ -1,0 +1,334 @@
+Spring Introduction
+
+1. Spring Junit4 Maven Integration
+
+最基础的配置是：
+
+1)Maven dependecies:
+- spring-context
+- junit
+
+2) ApplicationContext.xml放在classpath
+
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="
+http://www.springframework.org/schema/beans
+http://www.springframework.org/schema/beans/spring-beans.xsd
+http://www.springframework.org/schema/context
+http://www.springframework.org/schema/context/spring-context.xsd">
+	
+	<bean id="oneInterface" class="com.imooc.spring.ioc.OneInterfaceImpl"></bean>
+
+</beans>
+
+3) 测试类如下：
+
+public class SpringUnitTest extends TestCase {
+
+
+	private OneInterface oneInterface;
+	
+	ApplicationContext ctx = new ClassPathXmlApplicationContext("spring/spring-dao.xml");
+	
+	@Test
+	public void testOneInterface() {
+		oneInterface = (OneInterface)ctx.getBean("oneInterface");
+		System.out.println(oneInterface.hello("Spring Framework"));
+	}	
+}
+
+4）maven Dependency增加 
+- spring-test
+
+@RunWith(SpringJUnit4ClassRunner.class) //component scan？？生成bean定义
+@ContextConfiguration({ "classpath:spring/spring-dao.xml" }) //自动加载ApplicationContext
+
+则可以直接使用@Resource, @Autowired等注解，无需手动加载ApplicationContext
+
+二、Bean容器初始化的三种方法：
+
+本地文件： ApplicationContext ctx = new FileSystemXmlApplicationContext("c:\spring\spring-dao.xml");
+Classpath ：ApplicationContext ctx = new ClassPathXmlApplicationContext("spring/spring-dao.xml");
+Web应用中依赖servlet或Listener:
+<listener>
+	org.springframework.web.context.ContextLoaderListener
+</listener>
+
+<servlet>
+	<servlet-name>context</servlet-name>
+	<servelet-class>org.springframework.web.context.ContextLoaderServlet</servelet-class>
+	<load-on-startup>1</load-on-startup>
+</servlet>
+
+三、Spring注入的两种方式：
+- 设值注入
+	<bean id="injectionService" class="com.imooc.spring.ioc.injection.service.InjectionServiceImpl">
+		<property name="injectionDAO" ref="injectionDAO"/>
+	</bean>
+
+	public void setInjectionDAO(InjectionDAO injectionDAO) {
+		this.injectionDAO = injectionDAO;
+	}
+
+- 构造器注入
+	<bean id="injectionService" class="com.imooc.spring.ioc.injection.service.InjectionServiceImpl">
+		<constructor-arg name="injectionDAO" ref="injectionDAO"/>
+	</bean>
+
+	public InjectionServiceImpl(InjectionDAO injectionDAO) {
+		this.injectionDAO = injectionDAO;
+	}
+
+四、BEAN专题
+
+1）Bean配置项
+- Id： Bean在整个IOC容器中的唯一标识
+- Class： 具体要实例化的类 
+- Scope：范围、作用域
+- Constructor arguments: 构造器的参数
+- Properties： 属性
+- Autowiring mode: 自动装配的模式
+- Lazy-inititation mode：懒加载模式
+- Initialization/destruction method：初始化、销毁方法
+
+2） 作用域：
+singleton：默认，一个容器中单一个
+	<bean id="beanScope" class="com.imooc.spring.ioc.BeanScope" scope="singleton"></bean>	
+
+prototype：每次请求创建一个
+	<bean id="beanScopeProto" class="com.imooc.spring.ioc.BeanScopeProto" scope="prototype"></bean>
+request: 每个request创建一个
+session: 每个session创建一个
+global session: porlet有效
+
+Bean的生命周期
+Bean的自动装配
+Resources & ResourceLoader
+
+3) 生命周期
+- 定义： XML配置，id, class
+- 初始化: 生成bean的实例
+- 使用： 
+- 销毁： 
+	
+初始化
+- 实现org.springframework.beans.factory.InitializationBean接口，覆盖afterPropertiesSet方法
+
+- 配置init-method
+<bean id="exampleInitBean" class="examples.ExampleBean" init-method="init"/>
+
+public class ExampleBean {
+	public void init() {
+		//do some initialization work
+	}
+}
+
+销毁
+- 实现org.springframework.beans.factory.DisposableBean接口，覆盖destroy方法
+- 配置destroy-method
+<bean id="exampleInitBean" class="examples.ExampleBean" destroy-method="init"/>
+
+public class ExampleBean {
+	public void cleanup() {
+		//do some cleanup work
+	}
+}
+
+全局初始化和销毁
+<beans .... 
+default-init-method="init"	default-destroy-method="destroy">
+
+4) Aware接口
+- 实时Aware接口的类对应的bean在创建后，可以直接注入一些资源，ApplicationContext，BeanName etc
+- 这样很方便的使用这些资源了。否则要通过显式注入这些资源。
+
+六、自动装配
+1. 在applicationContext.xml里面设置：
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	。。。
+http://www.springframework.org/schema/context/spring-context.xsd"
+default-autowire="byName">
+
+//默认是No，不做Autowiring
+//bean id必须是唯一的
+
+
+2. 在applicationContext.xml中不需要配置properties或Constructor
+
+3. 在Class里面要有setter方法
+	private InjectionDAO injectionDAO;
+
+	public void setInjectionDAO(InjectionDAO injectionDAO) {
+		this.injectionDAO = injectionDAO;
+	}
+
+4. ByType：applicationContext.xml设置为byType
+<beans xmlns="http://www.springframework.org/schema/beans"
+	。。。
+http://www.springframework.org/schema/context/spring-context.xsd"
+default-autowire="byType">
+
+如果多个Bean的类型是一样的，会抛异常
+
+5. Constructor：安装类中构造器的参数类型来寻找对应的Bean，找不到也会抛异常
+
+
+7）Resource
+针对于资源文件的统一接口，Spring加载资源文件是通过Resource获取
+
+Resources
+- UrlResource
+- ClassPathResource
+- FileSystemResource
+- ServletContextResource
+- InputStreamResource
+- ByteArrayResource
+
+ResourceLoader
+- 对Resource加载的一个类，所有的applicationContext都实现了
+－　根据参数前缀加载为不同类型的资源
+e.g. classpath:com/mayapp/config.xml
+file:/data/config.xml
+http://myserver/logo.png
+
+七、基于注解的Bean管理
+- Classpath扫描与组件管理
+- 类的自动检测与注册Bean
+- <context:annotation-config/>
+- @Component, @Repository, @Service, @Controller
+- @Required
+- @Autowired
+- @Qualifier
+- @Resource
+
+1) Classpath扫描与组件管理
+- 本质上是使用Java注解而不是XML来定义bean
+@Configuration @Bean @Import @DependsOn
+
+@Component 通用
+@Repository DAO
+@Service 服务类
+@Controller MVC的Controller
+
+2） 元注解（Meta-annotation）
+注解的注解
+
+3）类的自动检测及Bean的注册
+- Spring自动检测类并将Bean注册到ApplicationContext中
+
+<context:annotation-config/>
+<context:component-scan base-package="org.exmaple">
+- 有第二句就不用第一句，已包括
+- 扫描base-package以下所有类
+
+4）使用过滤器进行自定义扫描
+如果类有以下注解扫描时就会被发现
+@Component
+@Repository
+@Service
+@Controller
+
+5）定义Bean名称
+- 可以显式指定
+@Service（"myMovieListener")
+pubic class SimpleMovieListener {
+	//...
+}
+
+- 不显示指定则自动按照类名生成，首字母小写
+
+- 可以自定义bean命名策略，实现BeanNameGenerator接口
+
+6）作用域（Scope)
+- 不配置默认是singleton
+- @Scope("prototype")
+- 可以自定义scope策略，实现ScopeMetadataResolver接口
+
+7）代理方式
+- 基于JDK和CGLIB的代理方式
+
+@Required
+- 适用于bean属性的setter方法
+- 在配置时必须填充bean属性
+
+八。 @Autowired
+@Autowired
+- @Autowired注解在setter方法上，就不用写XML的properties了
+- 注解在成员变量上，连setter方法和构造器都不用写了
+- 可以使用@Autowired获取资源、工具接口，例如：BeanFactory，ApplicationContext， Environment, ResourceLoader， ApplicationEventPublisher， MessageSource等
+@Autowired
+private ApplicationContext ctx;
+
+- 可以注解数组，会将所有集合中对象类型的Bean注入，还可以通过order控制顺序
+
+	@Autowired
+	private List<BeanInterface> beans;
+	
+	@Autowired
+	private Map<String, BeanInterface> beansMap;
+
+	@Order(3)
+	@Component
+	public class BeanInterfaceImpl1 implements BeanInterface {
+	
+	@Order(2)
+	@Component
+	public class BeanInterfaceImpl2 implements BeanInterface {
+
+	@Order(1)
+	@Component
+	public class BeanInterfaceImpl3 implements BeanInterface {
+
+- @Order
+
+- @Qualifier
+缩小范围（或指定唯一）
+@Autowired
+	@Qualifier("beanInterfaceImpl3")
+	private List<BeanInterface> beans;
+		
+	@Autowired
+	@Qualifier("beanInterfaceImpl2")
+	private BeanInterface beanI;
+
+ @Autowired 默认是按照byType进行注入的，但是当byType方式找到了多个符合的bean，又是怎么处理的？
+
+经过一些代码的测试，我发现，Autowired默认先按byType，如果发现找到多个bean，则，又按照byName方式比对，如果还有多个，则报出异常
+
+@Bean
+
+@Configuration
+- @Configuration貌似是Spring通过Annotation来封装配置（数据源、配置参数。。。）的方式。工作中这种配置还是用XML的比较多。
+@Configuration
+public class StoreConfig {
+	
+    @Bean(name="storeVIP", initMethod="start", destroyMethod="stop")
+	public Store stringStore() {
+		return new StringStore();
+	}
+}
+
+@Resource （JSR250）
+相当于@Autowired
+
+@PostConstruct （JSR250）
+相当于init-method， bean创建后调用
+
+@PreDestroy （JSR250）
+
+@Inject (JSR330)
+等效于@Autowired
+
+@Named (JSR330)
+等效于@Component
+
+
+
+相当于destroy-method， bean销毁前调用
+- @Resource //JSR250
+
+
